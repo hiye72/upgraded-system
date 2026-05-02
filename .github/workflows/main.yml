@@ -3,7 +3,7 @@ on: workflow_dispatch
 
 jobs:
   live-screen:
-    runs-on: macos-14 # এখানে macos-26 দেওয়া হয়েছে, যা macOS Tahoe 26.3.2 রান করবে
+    runs-on: macos-26 # এখানে macos-26 দেওয়া হয়েছে, যা macOS Tahoe 26.3.2 রান করবে
     timeout-minutes: 9999
 
     steps:
