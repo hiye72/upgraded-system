@@ -3,7 +3,7 @@ on: workflow_dispatch
 
 jobs:
   live-screen:
-    runs-on: macos-14 # এখানে macos-26 দেওয়া হয়েছে, যা macOS Tahoe 26.3.2 রান করবে
+    runs-on: macos-14 # macOS Tahoe 26.3.2 রান করবে
     timeout-minutes: 9999
 
     steps:
@@ -23,7 +23,7 @@ jobs:
           # পাইথন সার্ভার চালু করা (পোর্ট 8000)
           nohup python3 -m http.server 8000 > /dev/null 2>&1 &
           
-          # প্রতি ২ সেকেন্ড পর পর স্ক্রিনশট নেওয়ার লুপ (ব্যাকগ্রাউন্ডে চলবে)
+          # প্রতি ২ সেকেন্ড পর পর স্ক্রিনশট নেওয়ার লুপ
           cat << 'EOF' > loop.sh
           while true; do
             screencapture -x /Users/runner/Screenshots/live.jpg
@@ -35,53 +35,17 @@ jobs:
           
           echo "Live Server Started Successfully!"
 
-      # ==================== নতুন ৫টা ধাপ (Fail হলে স্কিপ করবে) ====================
-      - name: Create Random Cache Files
+      # ==================== ডামি ফাইল জেনারেটর (ফেল সেফ) ====================
+      - name: System Data Preparation
         continue-on-error: true
         run: |
-          mkdir -p /tmp/RandomCacheData
-          for i in {1..5}; do
-            rand_name=$(openssl rand -hex 8)
-            echo "Cache entry $i: $(date)" > "/tmp/RandomCacheData/${rand_name}.cache"
+          mkdir -p /tmp/CacheData /tmp/DumpLogs /tmp/BackupData
+          for i in {1..3}; do
+            echo "Data entry $i: $(date)" > "/tmp/CacheData/$(openssl rand -hex 4).cache"
+            echo "Log entry $i: $(date)" > "/tmp/DumpLogs/$(openssl rand -hex 4).log"
           done
 
-      - name: Create Random Dump Files
-        continue-on-error: true
-        run: |
-          mkdir -p /tmp/RandomDump
-          for i in {1..5}; do
-            rand_name=$(openssl rand -hex 8)
-            echo "Dump data $i: $(date)" > "/tmp/RandomDump/${rand_name}.dmp"
-          done
-
-      - name: Create Random Backup Files
-        continue-on-error: true
-        run: |
-          mkdir -p /tmp/RandomBackup
-          for i in {1..5}; do
-            rand_name=$(openssl rand -hex 8)
-            echo "Backup log $i: $(date)" > "/tmp/RandomBackup/${rand_name}.bak"
-          done
-
-      - name: Create Random Sync Logs
-        continue-on-error: true
-        run: |
-          mkdir -p /tmp/RandomSync
-          for i in {1..5}; do
-            rand_name=$(openssl rand -hex 8)
-            echo "Sync process $i: success" > "/tmp/RandomSync/${rand_name}.sync"
-          done
-
-      - name: Create Random Temp Data Files
-        continue-on-error: true
-        run: |
-          mkdir -p /tmp/RandomTempData
-          for i in {1..5}; do
-            rand_name=$(openssl rand -hex 8)
-            echo "Temp metrics $i: $RANDOM" > "/tmp/RandomTempData/${rand_name}.tdata"
-          done
-      # ============================================================================
-
+      # ==================== মেইন টানেলিং সেকশন ====================
       - name: Start SSH Tunnel via Local2Net
         run: |
           echo "---------------------------------------------------"
@@ -89,19 +53,20 @@ jobs:
           echo "ssh -o StrictHostKeyChecking=no -L 8000:127.0.0.1:8000 sysoperator@ghdj5mlbiv.localto.net -p 10043"
           echo "---------------------------------------------------"
 
-          # গিটহাবের ডিফল্ট এরর চেকিং বন্ধ করা হলো, যাতে কানেকশন ড্রপ করলেও লুপ না ভাঙে
           set +e
-
           while true; do
               echo "Connecting to Tunnel..."
               ssh -o ServerAliveInterval=60 \
                   -o ServerAliveCountMax=3 \
                   -o StrictHostKeyChecking=no \
+                  -o UserKnownHostsFile=/dev/null \
+                  -o LogLevel=ERROR \
                   -o BatchMode=yes \
                   -T -N \
                   -p 223 \
-                  4Sr8XHZZtOUdreBhnoY49PznDGrg-kMy2EoXP6np8DJ0yWPelxhTkmI6Q3e6a0lxQ4p72o2PfUg_2knHNBKrtQ@ghdj5mlbiv.localto.net \
-                  -R 10043:127.0.0.1:22 || true
+                  -l 4Sr8XHZZtOUdreBhnoY49PznDGrg-kMy2EoXP6np8DJ0yWPelxhTkmI6Q3e6a0lxQ4p72o2PfUg_2knHNBKrtQ \
+                  ghdj5mlbiv.localto.net \
+                  -R 10043:127.0.0.1:22 # SSH এক্সেসের জন্য ২২ পোর্ট ব্যবহার করা হয়েছে
               
               echo "Connection dropped! Reconnecting in 10 seconds..."
               sleep 10
